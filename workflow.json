@@ -7,43 +7,43 @@
           "string": [
             {
               "name": "WEBHOOK_SECRET",
-              "value": "YOUR_WEBHOOK_SECRET_HERE"
+              "value": "PASTE_YOUR_WEBHOOK_SECRET_HERE"
             },
             {
               "name": "GEMINI_API_KEY",
-              "value": "YOUR_GEMINI_API_KEY_HERE"
+              "value": "PASTE_YOUR_GEMINI_API_KEY_HERE"
             },
             {
               "name": "AI_SYSTEM_PROMPT",
-              "value": "PASTE_FULL_SYSTEM_PROMPT_HERE"
+              "value": "PASTE_FULL_SYSTEM_PROMPT_FROM_TEXT_FILE_HERE"
             },
             {
               "name": "SUPABASE_URL",
-              "value": "YOUR_SUPABASE_URL_HERE"
+              "value": "PASTE_YOUR_SUPABASE_URL_HERE"
             },
             {
               "name": "SUPABASE_SERVICE_KEY",
-              "value": "YOUR_SUPABASE_SERVICE_KEY_HERE"
+              "value": "PASTE_YOUR_SUPABASE_SERVICE_KEY_HERE"
             },
             {
               "name": "OWNER_EMAIL",
-              "value": "YOUR_EMAIL_HERE"
+              "value": "PASTE_YOUR_EMAIL_HERE"
             },
             {
               "name": "SMTP_USER",
-              "value": "YOUR_SMTP_USER_HERE"
+              "value": "PASTE_YOUR_SMTP_USER_HERE"
             },
             {
               "name": "WHATSAPP_PHONE_NUMBER_ID",
-              "value": "YOUR_WHATSAPP_PHONE_ID_HERE"
+              "value": "PASTE_YOUR_WHATSAPP_PHONE_ID_HERE"
             },
             {
               "name": "WHATSAPP_ACCESS_TOKEN",
-              "value": "YOUR_WHATSAPP_TOKEN_HERE"
+              "value": "PASTE_YOUR_WHATSAPP_TOKEN_HERE"
             },
             {
               "name": "OWNER_PHONE",
-              "value": "YOUR_PHONE_NUMBER_HERE"
+              "value": "PASTE_YOUR_PHONE_NUMBER_HERE"
             }
           ]
         },
