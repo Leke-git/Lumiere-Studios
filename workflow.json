@@ -1,0 +1,347 @@
+{
+  "name": "Lumière Studio — AI Lead Qualifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lumiere-studio",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Security check — always the first thing executed\nconst incoming = $json.body.webhookSecret;\nconst expected = $env.WEBHOOK_SECRET;\n\nif (!incoming || incoming !== expected) {\n  return [{ json: { error: \"Unauthorized\", status: 401 } }];\n}\n\n// Strip the secret from the payload before passing downstream\nconst { webhookSecret, ...safePayload } = $json.body;\nreturn [{ json: safePayload }];"
+      },
+      "name": "Security Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.error}}",
+              "value2": "Unauthorized"
+            }
+          ]
+        }
+      },
+      "name": "Is Unauthorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.intent}}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "public_enquiry"
+            },
+            {
+              "value2": "admin_auth",
+              "output": 1
+            },
+            {
+              "value2": "admin_read",
+              "output": 2
+            },
+            {
+              "value2": "admin_write",
+              "output": 3
+            }
+          ]
+        }
+      },
+      "name": "Intent Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.0-flash",
+        "prompt": "={{$json}}",
+        "systemInstruction": "={{$env.AI_SYSTEM_PROMPT}}"
+      },
+      "name": "Gemini AI Scoring",
+      "type": "n8n-nodes-base.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/leads",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{$node[\"Intent Router\"].json.name}}"
+            },
+            {
+              "name": "email",
+              "value": "={{$node[\"Intent Router\"].json.email}}"
+            },
+            {
+              "name": "phone",
+              "value": "={{$node[\"Intent Router\"].json.phone}}"
+            },
+            {
+              "name": "session_type",
+              "value": "={{$node[\"Intent Router\"].json.session_type}}"
+            },
+            {
+              "name": "budget",
+              "value": "={{$node[\"Intent Router\"].json.budget}}"
+            },
+            {
+              "name": "preferred_date",
+              "value": "={{$node[\"Intent Router\"].json.preferred_date}}"
+            },
+            {
+              "name": "message",
+              "value": "={{$node[\"Intent Router\"].json.message}}"
+            },
+            {
+              "name": "ai_score",
+              "value": "={{$json.score}}"
+            },
+            {
+              "name": "ai_tier",
+              "value": "={{$json.tier}}"
+            },
+            {
+              "name": "ai_summary",
+              "value": "={{$json.summary}}"
+            },
+            {
+              "name": "ai_reply",
+              "value": "={{$json.reply}}"
+            },
+            {
+              "name": "submitted_at",
+              "value": "={{$node[\"Intent Router\"].json.submitted_at}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Supabase Insert Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$node[\"Gemini AI Scoring\"].json.tier}}",
+              "value2": "hot"
+            }
+          ]
+        }
+      },
+      "name": "Is Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.SMTP_USER}}",
+        "toEmail": "={{$env.OWNER_EMAIL}}",
+        "subject": "URGENT: New Hot Lead - {{$node[\"Intent Router\"].json.name}}",
+        "text": "A new hot lead has arrived!\n\nName: {{$node[\"Intent Router\"].json.name}}\nSession: {{$node[\"Intent Router\"].json.session_type}}\nBudget: ₦{{$node[\"Intent Router\"].json.budget}}\nScore: {{$node[\"Gemini AI Scoring\"].json.score}}\nSummary: {{$node[\"Gemini AI Scoring\"].json.summary}}\n\nCheck the admin panel for details."
+      },
+      "name": "Owner Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.SMTP_USER}}",
+        "toEmail": "={{$node[\"Intent Router\"].json.email}}",
+        "subject": "Thank you for your inquiry - Lumière Studio",
+        "text": "={{$node[\"Gemini AI Scoring\"].json.reply}}"
+      },
+      "name": "Client Auto Reply",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v17.0/{{$env.WHATSAPP_PHONE_NUMBER_ID}}/messages",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{$env.OWNER_PHONE}}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"URGENT: New Hot Lead from {{$node[\\\"Intent Router\\\"].json.name}} (₦{{$node[\\\"Intent Router\\\"].json.budget}}). Check your email for full details.\"\n  }\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.WHATSAPP_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "WhatsApp Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1500,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Security Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security Gate": {
+      "main": [
+        [
+          {
+            "node": "Is Unauthorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Unauthorized?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Intent Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Router": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Scoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI Scoring": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert Lead": {
+      "main": [
+        [
+          {
+            "node": "Is Hot Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Hot Lead?": {
+      "main": [
+        [
+          {
+            "node": "Owner Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WhatsApp Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Client Auto Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Owner Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Client Auto Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Notification": {
+      "main": [
+        []
+      ]
+    }
+  }
+}

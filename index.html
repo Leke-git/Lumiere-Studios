@@ -1,13 +1,962 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumière Studio | Editorial Photography Lagos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0A0A0A;
+            --cream: #F5F5F0;
+            --gold: #D4AF37;
+            --gold-muted: #B8965A;
+            --charcoal: #1A1A1A;
+            --white: #FFFFFF;
+            --transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--ink);
+            color: var(--cream);
+            font-family: 'Jost', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+            cursor: none; /* Custom cursor */
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        p {
+            font-weight: 300;
+            letter-spacing: 0.02em;
+        }
+
+        a, button {
+            cursor: none;
+            text-decoration: none;
+            color: inherit;
+            transition: var(--transition);
+        }
+
+        /* Custom Cursor */
+        #cursor-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--gold);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+        }
+
+        #cursor-ring {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--gold);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.15s ease-out;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 0 20px; }
+            body { cursor: auto; }
+            #cursor-dot, #cursor-ring { display: none; }
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 30px 0;
+            z-index: 1000;
+            background: linear-gradient(to bottom, rgba(10,10,10,0.8), transparent);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(245, 245, 240, 0.05);
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 26px;
+            font-family: 'Cormorant Garamond', serif;
+            letter-spacing: 0.4em;
+            font-weight: 400;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+        }
+
+        .nav-links a:hover {
+            color: var(--gold);
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+        }
+
+        /* Hero */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('https://picsum.photos/seed/lumiere-hero/1920/1080?grayscale') center/cover no-referrer;
+            opacity: 0.35;
+            z-index: -1;
+            transform: scale(1.1);
+            transition: transform 15s ease-out;
+        }
+
+        .hero.visible .hero-bg {
+            transform: scale(1);
+        }
+
+        .hero h1 {
+            font-size: clamp(48px, 10vw, 140px);
+            line-height: 0.85;
+            margin-bottom: 25px;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        .hero p {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5em;
+            color: var(--gold);
+            margin-bottom: 45px;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .hero.visible h1, .hero.visible p, .hero.visible .btn-hero {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .hero h1 { transition-delay: 0.2s; }
+        .hero p { transition-delay: 0.4s; }
+        .btn-hero { transition-delay: 0.6s; }
+
+        /* Sections */
+        section {
+            padding: 180px 0;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: var(--transition);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* About */
+        .about-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 100px;
+            align-items: center;
+        }
+
+        @media (max-width: 992px) {
+            .about-grid { grid-template-columns: 1fr; gap: 60px; }
+        }
+
+        .about-text h2 {
+            font-size: 56px;
+            margin-bottom: 35px;
+            line-height: 1.1;
+        }
+
+        .about-text p {
+            font-size: 19px;
+            font-weight: 200;
+            color: var(--cream);
+            opacity: 0.85;
+            margin-bottom: 50px;
+            max-width: 550px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+        }
+
+        .stat-item h3 {
+            font-size: 38px;
+            color: var(--gold);
+            margin-bottom: 5px;
+        }
+
+        .stat-item p {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            opacity: 0.6;
+        }
+
+        /* Services */
+        .services-header {
+            text-align: center;
+            margin-bottom: 100px;
+        }
+
+        .services-header h2 {
+            font-size: 48px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+        }
+
+        @media (max-width: 992px) {
+            .services-grid { grid-template-columns: 1fr; }
+        }
+
+        .service-card {
+            background: var(--charcoal);
+            padding: 80px 50px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-card:hover {
+            border-color: var(--gold-muted);
+            transform: translateY(-15px);
+        }
+
+        .service-card h3 {
+            font-size: 32px;
+            margin-bottom: 25px;
+        }
+
+        .service-card .price {
+            font-size: 13px;
+            color: var(--gold);
+            margin-bottom: 25px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        .service-card p {
+            font-size: 15px;
+            opacity: 0.65;
+            font-weight: 300;
+        }
+
+        /* Gallery */
+        .gallery-strip {
+            display: flex;
+            gap: 15px;
+            height: 700px;
+            padding: 0 15px;
+        }
+
+        .gallery-item {
+            flex: 1;
+            background-size: cover;
+            background-position: center;
+            transition: flex 1s cubic-bezier(0.22, 1, 0.36, 1);
+            filter: grayscale(100%) contrast(1.1);
+            position: relative;
+        }
+
+        .gallery-item:hover {
+            flex: 3.5;
+            filter: grayscale(0%) contrast(1);
+        }
+
+        @media (max-width: 768px) {
+            .gallery-strip { flex-direction: column; height: auto; }
+            .gallery-item { height: 350px; flex: none; filter: grayscale(0%); }
+        }
+
+        /* Testimonials */
+        .testimonials {
+            background: var(--charcoal);
+            text-align: center;
+            padding: 140px 0;
+        }
+
+        .testimonial-slider {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            height: 250px;
+        }
+
+        .testimonial-item {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0;
+            transition: opacity 1.2s ease;
+            pointer-events: none;
+        }
+
+        .testimonial-item.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .testimonial-item blockquote {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(24px, 4vw, 38px);
+            font-style: italic;
+            margin-bottom: 30px;
+            line-height: 1.3;
+            color: var(--cream);
+        }
+
+        .testimonial-item cite {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: var(--gold);
+            font-style: normal;
+        }
+
+        /* Booking Form */
+        .booking-section {
+            background: var(--ink);
+            padding-bottom: 200px;
+        }
+
+        .form-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .form-header h2 {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .form-header p {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            opacity: 0.5;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .input-group label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            color: var(--gold);
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(245, 245, 240, 0.15);
+            padding: 18px 0;
+            color: var(--cream);
+            font-family: 'Jost', sans-serif;
+            font-size: 17px;
+            transition: var(--transition);
+            border-radius: 0;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-bottom-color: var(--gold);
+        }
+
+        .pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .pill {
+            padding: 10px 24px;
+            border: 1px solid rgba(245, 245, 240, 0.15);
+            border-radius: 100px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            cursor: none;
+            transition: var(--transition);
+        }
+
+        .pill:hover {
+            border-color: var(--gold);
+        }
+
+        .pill.active {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: var(--ink);
+        }
+
+        .budget-display {
+            font-size: 28px;
+            font-family: 'Cormorant Garamond', serif;
+            margin-top: 15px;
+            color: var(--cream);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 24px;
+            background: var(--gold);
+            color: var(--ink);
+            border: none;
+            font-family: 'Jost', sans-serif;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.4em;
+            margin-top: 60px;
+            transition: var(--transition);
+            font-size: 13px;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            background: var(--cream);
+            transform: scale(1.02);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 100px 40px;
+            border: 1px solid var(--gold);
+            animation: fadeIn 1s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Footer */
+        footer {
+            padding: 100px 0;
+            border-top: 1px solid rgba(245, 245, 240, 0.05);
+            text-align: center;
+        }
+
+        .footer-logo {
+            font-size: 36px;
+            letter-spacing: 0.6em;
+            margin-bottom: 50px;
+            font-family: 'Cormorant Garamond', serif;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 50px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            opacity: 0.7;
+        }
+
+        .social-links a:hover {
+            color: var(--gold);
+            opacity: 1;
+        }
+
+        .copyright {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            opacity: 0.35;
+        }
+
+        /* Scroll Indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            opacity: 0.6;
+        }
+
+        .mouse {
+            width: 22px;
+            height: 38px;
+            border: 1px solid var(--cream);
+            border-radius: 20px;
+            position: relative;
+        }
+
+        .mouse::after {
+            content: '';
+            width: 2px;
+            height: 6px;
+            background: var(--cream);
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: scrollDown 2s infinite;
+        }
+
+        @keyframes scrollDown {
+            0% { opacity: 0; transform: translate(-50%, 0); }
+            50% { opacity: 1; transform: translate(-50%, 8px); }
+            100% { opacity: 0; transform: translate(-50%, 16px); }
+        }
+
+        /* Range Input Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 2px;
+            background: rgba(245, 245, 240, 0.15);
+            outline: none;
+            margin: 20px 0;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--gold);
+            border-radius: 50%;
+            cursor: none;
+            transition: transform 0.2s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Custom Cursor -->
+    <div id="cursor-dot"></div>
+    <div id="cursor-ring"></div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="container nav-content">
+            <div class="logo">LUMIÈRE</div>
+            <div class="nav-links">
+                <a href="#about">About</a>
+                <a href="#services">Services</a>
+                <a href="#gallery">Gallery</a>
+                <a href="#book">Book Now</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero" id="home">
+            <div class="hero-bg"></div>
+            <div class="container">
+                <p>Lagos, Nigeria</p>
+                <h1>Editorial<br>Photography</h1>
+                <a href="#book" class="btn-hero" style="display: inline-block; padding: 18px 45px; border: 1px solid var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4em; margin-top: 30px;">Inquire Now</a>
+            </div>
+            <div class="scroll-indicator">
+                <div class="mouse"></div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about">
+            <div class="container">
+                <div class="about-grid">
+                    <div class="about-image reveal">
+                        <img src="https://picsum.photos/seed/lumiere-about/900/1200?grayscale" alt="Studio Atmosphere" style="width: 100%; height: auto; display: block;" referrerPolicy="no-referrer">
+                    </div>
+                    <div class="about-text">
+                        <h2 class="reveal">The Art of<br>Observation</h2>
+                        <p class="reveal">Lumière is an editorial photography studio based in Lagos, dedicated to capturing the raw, intentional beauty of life's most significant moments. We don't just take photos; we document legacies.</p>
+                        <div class="stats">
+                            <div class="stat-item reveal">
+                                <h3>08+</h3>
+                                <p>Years Experience</p>
+                            </div>
+                            <div class="stat-item reveal">
+                                <h3>500+</h3>
+                                <p>Stories Told</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Services Section -->
+        <section id="services">
+            <div class="container">
+                <div class="services-header">
+                    <h2 class="reveal">Our Services</h2>
+                </div>
+                <div class="services-grid">
+                    <div class="service-card reveal">
+                        <h3>Weddings</h3>
+                        <span class="price">From ₦450,000</span>
+                        <p>Cinematic coverage of your union. We focus on the quiet moments and the grand celebrations alike.</p>
+                    </div>
+                    <div class="service-card reveal">
+                        <h3>Portraits</h3>
+                        <span class="price">From ₦85,000</span>
+                        <p>Editorial-style portraiture for individuals who value intentionality and timeless aesthetics.</p>
+                    </div>
+                    <div class="service-card reveal">
+                        <h3>Corporate</h3>
+                        <span class="price">From ₦200,000</span>
+                        <p>Elevating brand identities through high-end corporate imagery and executive headshots.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gallery Section -->
+        <section id="gallery" style="padding: 0;">
+            <div class="gallery-strip reveal">
+                <div class="gallery-item" style="background-image: url('https://picsum.photos/seed/lumiere-g1/800/1200?grayscale')"></div>
+                <div class="gallery-item" style="background-image: url('https://picsum.photos/seed/lumiere-g2/800/1200?grayscale')"></div>
+                <div class="gallery-item" style="background-image: url('https://picsum.photos/seed/lumiere-g3/800/1200?grayscale')"></div>
+                <div class="gallery-item" style="background-image: url('https://picsum.photos/seed/lumiere-g4/800/1200?grayscale')"></div>
+                <div class="gallery-item" style="background-image: url('https://picsum.photos/seed/lumiere-g5/800/1200?grayscale')"></div>
+            </div>
+        </section>
+
+        <!-- Testimonials Section -->
+        <section class="testimonials">
+            <div class="container">
+                <div class="testimonial-slider">
+                    <div class="testimonial-item active">
+                        <blockquote>"Lumière captured our wedding in a way that felt like a high-fashion editorial. Truly breathtaking."</blockquote>
+                        <cite>Adesua & Banky</cite>
+                    </div>
+                    <div class="testimonial-item">
+                        <blockquote>"The most intentional photography experience I've ever had. Every frame is a work of art."</blockquote>
+                        <cite>Chidi O.</cite>
+                    </div>
+                    <div class="testimonial-item">
+                        <blockquote>"Professional, artistic, and perfectly aligned with our brand's luxury aesthetic."</blockquote>
+                        <cite>Vogue Africa</cite>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Booking Section -->
+        <section id="book" class="booking-section">
+            <div class="container">
+                <div class="form-container">
+                    <div id="booking-form-wrapper">
+                        <div class="form-header">
+                            <h2 class="reveal">Inquire</h2>
+                            <p class="reveal">Tell us about your vision</p>
+                        </div>
+                        <form id="booking-form" class="reveal">
+                            <div class="form-grid">
+                                <div class="input-group">
+                                    <label>Full Name</label>
+                                    <input type="text" name="name" required placeholder="John Doe">
+                                </div>
+                                <div class="input-group">
+                                    <label>Email Address</label>
+                                    <input type="email" name="email" required placeholder="john@example.com">
+                                </div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="input-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" name="phone" required placeholder="+234 ...">
+                                </div>
+                                <div class="input-group">
+                                    <label>Preferred Date</label>
+                                    <input type="date" name="preferred_date">
+                                </div>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 40px;">
+                                <label>Session Type</label>
+                                <div class="pills" id="session-pills">
+                                    <div class="pill" data-value="Wedding">Wedding</div>
+                                    <div class="pill" data-value="Portrait">Portrait</div>
+                                    <div class="pill" data-value="Corporate">Corporate</div>
+                                    <div class="pill" data-value="Other">Other</div>
+                                </div>
+                                <input type="hidden" name="session_type" id="session_type_input" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 40px;">
+                                <label>Budget Range (₦)</label>
+                                <input type="range" name="budget" id="budget_slider" min="50000" max="2000000" step="50000" value="450000">
+                                <div class="budget-display">₦ <span id="budget_value">450,000</span></div>
+                            </div>
+                            <div class="input-group">
+                                <label>Your Vision</label>
+                                <textarea name="message" rows="5" placeholder="Tell us more about the session..."></textarea>
+                            </div>
+                            <button type="submit" class="btn-submit" id="submit-btn">Send Inquiry</button>
+                        </form>
+                    </div>
+                    <div id="success-message" class="success-message">
+                        <h2 style="color: var(--gold); margin-bottom: 25px;">Thank You</h2>
+                        <p style="font-size: 18px; opacity: 0.8;">Your vision has been received. We will review your inquiry and get back to you shortly.</p>
+                        <button onclick="window.location.reload()" style="margin-top: 40px; border: 1px solid var(--gold); padding: 12px 30px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; background: transparent; color: var(--gold);">Back to Home</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-logo">LUMIÈRE</div>
+            <div class="social-links">
+                <a href="#">Instagram</a>
+                <a href="#">WhatsApp</a>
+                <a href="#">Vimeo</a>
+            </div>
+            <p class="copyright">&copy; 2026 Lumière Studio Lagos. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Custom Cursor Logic
+        const dot = document.getElementById('cursor-dot');
+        const ring = document.getElementById('cursor-ring');
+
+        document.addEventListener('mousemove', (e) => {
+            dot.style.left = e.clientX + 'px';
+            dot.style.top = e.clientY + 'px';
+            
+            // Ring lag effect
+            requestAnimationFrame(() => {
+                ring.style.left = e.clientX + 'px';
+                ring.style.top = e.clientY + 'px';
+            });
+        });
+
+        // Hover effects for cursor
+        const interactiveElements = document.querySelectorAll('a, button, .pill, input, textarea, .gallery-item');
+        interactiveElements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                ring.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                ring.style.borderColor = 'var(--white)';
+            });
+            el.addEventListener('mouseleave', () => {
+                ring.style.transform = 'translate(-50%, -50%) scale(1)';
+                ring.style.borderColor = 'var(--gold)';
+            });
+        });
+
+        // Scroll Reveal Logic
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal, .hero').forEach(el => observer.observe(el));
+
+        // Testimonial Slider Logic
+        let currentTestimonial = 0;
+        const testimonials = document.querySelectorAll('.testimonial-item');
+        
+        function rotateTestimonials() {
+            testimonials[currentTestimonial].classList.remove('active');
+            currentTestimonial = (currentTestimonial + 1) % testimonials.length;
+            testimonials[currentTestimonial].classList.add('active');
+        }
+
+        setInterval(rotateTestimonials, 6000);
+
+        // Form Interaction Logic
+        const pills = document.querySelectorAll('.pill');
+        const sessionInput = document.getElementById('session_type_input');
+        const budgetSlider = document.getElementById('budget_slider');
+        const budgetValue = document.getElementById('budget_value');
+        const form = document.getElementById('booking-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const formWrapper = document.getElementById('booking-form-wrapper');
+        const successMessage = document.getElementById('success-message');
+
+        pills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                pills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                sessionInput.value = pill.dataset.value;
+            });
+        });
+
+        budgetSlider.addEventListener('input', (e) => {
+            budgetValue.textContent = parseInt(e.target.value).toLocaleString();
+        });
+
+        // Form Submission Logic
+        // These will be configured by the user in .env later
+        const N8N_WEBHOOK = 'YOUR_WEBHOOK_HERE';
+        const WEBHOOK_SECRET = 'YOUR_WEBHOOK_SECRET_HERE';
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!sessionInput.value) {
+                alert('Please select a session type.');
+                return;
+            }
+
+            // Disable button and show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending Inquiry...';
+
+            const formData = new FormData(form);
+            const payload = {
+                intent: 'public_enquiry',
+                webhookSecret: WEBHOOK_SECRET,
+                name: sanitize(formData.get('name')),
+                email: sanitize(formData.get('email')),
+                phone: sanitize(formData.get('phone')),
+                session_type: formData.get('session_type'),
+                preferred_date: formData.get('preferred_date'),
+                budget: parseInt(formData.get('budget')),
+                message: sanitize(formData.get('message')),
+                submitted_at: new Date().toISOString()
+            };
+
+            try {
+                const response = await fetch(N8N_WEBHOOK, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                // Since n8n responds immediately with {status: received}, we check for ok
+                if (response.ok) {
+                    formWrapper.style.display = 'none';
+                    successMessage.style.display = 'block';
+                    successMessage.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    throw new Error('Submission failed');
+                }
+            } catch (error) {
+                console.error('Submission error:', error);
+                alert('We encountered an issue sending your inquiry. Please try again or reach out via Instagram.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Inquiry';
+            }
+        });
+
+        // Basic Sanitization Helper
+        function sanitize(str) {
+            if (!str) return '';
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+    </script>
+</body>
+</html>
