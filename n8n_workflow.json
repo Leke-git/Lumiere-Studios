@@ -1,0 +1,325 @@
+{
+  "name": "Lumière Studio — AI Lead Qualifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lumiere-lead",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{ $env.GEMINI_API_KEY }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"system_instruction\": {\n    \"parts\": [\n      {\n        \"text\": \"AI LEAD-SCORING AGENT FOR LUMIÈRE STUDIO\\n\\nYou are a luxury photography studio lead-scoring agent for Lumière Studio in Lagos, Nigeria. Your goal is to evaluate incoming client enquiries and generate a personalized, warm response.\\n\\nINPUT JSON:\\n{\\n  \\\"name\\\": string,\\n  \\\"email\\\": string,\\n  \\\"sessionType\\\": string,\\n  \\\"budget\\\": number,\\n  \\\"preferredDate\\\": string (ISO date),\\n  \\\"urgency\\\": string (within_2_weeks | within_month | within_3_months | flexible),\\n  \\\"message\\\": string\\n}\\n\\nOUTPUT JSON (Return ONLY valid JSON):\\n{\\n  \\\"score\\\": number (1-10),\\n  \\\"tier\\\": \\\"hot\\\" | \\\"warm\\\" | \\\"cold\\\",\\n  \\\"summary\\\": string (one sentence summary of the lead),\\n  \\\"reply\\\": string (full personalized reply to the client)\\n}\\n\\nTIER THRESHOLDS:\\n- hot: score 8-10\\n- warm: score 5-7\\n- cold: score 1-4\\n\\nSCORING CRITERIA:\\n- sessionType is Wedding (+3)\\n- budget >= 300,000 (+2)\\n- urgency is 'within_2_weeks' or 'within_month' (+2)\\n- message is detailed, specific, and shows genuine intent (+2)\\n- preferredDate is provided (+1)\\n\\nSCORE REDUCTION:\\n- budget < 85,000 (-2)\\n- message is vague, single sentence, or only asks for price (-2)\\n- urgency is 'flexible' AND no preferredDate provided (-1)\\n- sessionType is 'Other' with no additional explanation in message (-1)\\n\\nREPLY RULES:\\n- Tone: Warm, friendly, and personal (not corporate).\\n- Reference the client's specific session type and their approximate budget.\\n- Invite them to the next step (e.g., a discovery call, a calendar link, or a personal reply).\\n- Sign off as \\\"The Lumière Team\\\".\\n- DO NOT mention the score, tier, or any internal assessment in the reply.\"\n      }\n    ]\n  },\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"{{ JSON.stringify($json.body) }}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "gemini-api",
+      "name": "Gemini AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $node[\"Gemini AI\"].json.candidates[0].content.parts[0].text;\nconst cleanJson = aiResponse.replace(/```json|```/g, '').trim();\nconst parsed = JSON.parse(cleanJson);\n\nreturn {\n  ...parsed,\n  ...$node[\"Webhook\"].json.body\n};"
+      },
+      "id": "parse-ai-response",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.name }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"session_type\": \"{{ $json.sessionType }}\",\n  \"budget\": {{ $json.budget }},\n  \"preferred_date\": \"{{ $json.preferredDate }}\",\n  \"urgency\": \"{{ $json.urgency }}\",\n  \"message\": \"{{ $json.message }}\",\n  \"ai_score\": {{ $json.score }},\n  \"ai_tier\": \"{{ $json.tier }}\",\n  \"ai_summary\": \"{{ $json.summary }}\",\n  \"ai_reply\": \"{{ $json.reply }}\",\n  \"submitted_at\": \"{{ $json.submittedAt }}\"\n}",
+        "options": {}
+      },
+      "id": "supabase-insert",
+      "name": "Supabase Insert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node[\"Parse AI Response\"].json.tier }}",
+              "value2": "hot"
+            }
+          ]
+        }
+      },
+      "id": "is-tier-hot",
+      "name": "Is Tier Hot?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "email": "={{ $env.STUDIO_OWNER_EMAIL || 'hello@lumierestudio.com' }}",
+        "subject": "=🔴 HOT LEAD — {{ $node[\"Parse AI Response\"].json.name }} · Score {{ $node[\"Parse AI Response\"].json.score }}/10",
+        "body": "=<h1>🔴 HOT LEAD RECEIVED</h1><p><strong>Name:</strong> {{ $node[\"Parse AI Response\"].json.name }}</p><p><strong>Email:</strong> {{ $node[\"Parse AI Response\"].json.email }}</p><p><strong>Session:</strong> {{ $node[\"Parse AI Response\"].json.sessionType }}</p><p><strong>Budget:</strong> ₦{{ $node[\"Parse AI Response\"].json.budget.toLocaleString() }}</p><p><strong>Summary:</strong> {{ $node[\"Parse AI Response\"].json.summary }}</p><p><strong>Message:</strong> {{ $node[\"Parse AI Response\"].json.message }}</p><p><a href=\"{{ $env.SUPABASE_URL }}\">View in Supabase</a></p>",
+        "appendAttributions": false
+      },
+      "id": "owner-alert-hot",
+      "name": "Owner Urgent Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"text\": \"🔴 *HOT LEAD* — *{{ $node[\\\"Parse AI Response\\\"].json.name }}* scored {{ $node[\\\"Parse AI Response\\\"].json.score }}/10\\n{{ $node[\\\"Parse AI Response\\\"].json.sessionType }} · ₦{{ $node[\\\"Parse AI Response\\\"].json.budget.toLocaleString() }}\\n{{ $node[\\\"Parse AI Response\\\"].json.summary }}\" }",
+        "options": {}
+      },
+      "id": "slack-ping",
+      "name": "Slack Ping",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "email": "={{ $node[\"Parse AI Response\"].json.email }}",
+        "subject": "Re: Your Lumière Studio Enquiry ✨",
+        "body": "={{ $node[\"Parse AI Response\"].json.reply }}",
+        "appendAttributions": false
+      },
+      "id": "client-reply-hot",
+      "name": "Client Reply Hot",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node[\"Parse AI Response\"].json.tier }}",
+              "value2": "warm"
+            }
+          ]
+        }
+      },
+      "id": "is-tier-warm",
+      "name": "Is Tier Warm?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "email": "={{ $node[\"Parse AI Response\"].json.email }}",
+        "subject": "=Re: Your Lumière Studio Enquiry, {{ $node[\"Parse AI Response\"].json.name.split(' ')[0] }} ✨",
+        "body": "={{ $node[\"Parse AI Response\"].json.reply }}",
+        "appendAttributions": false
+      },
+      "id": "client-reply-warm",
+      "name": "Client Reply Warm",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "email": "={{ $node[\"Parse AI Response\"].json.email }}",
+        "subject": "We received your enquiry — Lumière Studio",
+        "body": "Dear {{ $node[\"Parse AI Response\"].json.name }},\n\nThank you for reaching out to Lumière Studio. We have received your enquiry regarding a {{ $node[\"Parse AI Response\"].json.sessionType }} session.\n\nOur team is currently reviewing your request and we will be in touch shortly to discuss how we can bring your vision to life.\n\nWarmly,\nThe Lumière Team",
+        "appendAttributions": false
+      },
+      "id": "client-reply-cold",
+      "name": "Client Reply Cold",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        550
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert": {
+      "main": [
+        [
+          {
+            "node": "Is Tier Hot?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Tier Hot?": {
+      "main": [
+        [
+          {
+            "node": "Owner Urgent Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Tier Warm?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Owner Urgent Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack Ping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Ping": {
+      "main": [
+        [
+          {
+            "node": "Client Reply Hot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Tier Warm?": {
+      "main": [
+        [
+          {
+            "node": "Client Reply Warm",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Client Reply Cold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
