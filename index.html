@@ -902,11 +902,15 @@
         async function loadConfig() {
             try {
                 const response = await fetch('/api/config');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const config = await response.json();
                 N8N_WEBHOOK = config.n8nWebhook;
                 WEBHOOK_SECRET = config.webhookSecret;
+                console.log('Configuration loaded successfully');
             } catch (err) {
                 console.error('Failed to load configuration:', err);
+                // Fallback to local storage if needed, or just warn
+                console.warn('The app is running without a valid n8n webhook configuration. Check your Vercel environment variables.');
             }
         }
         loadConfig();
