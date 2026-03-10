@@ -619,7 +619,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         intent: 'admin_auth',
-                        webhookSecret: WEBHOOK_SECRET,
+                        webhookSecret: WEBHOOK_SECRET, // Legacy support
+                        WEBHOOK_SECRET: WEBHOOK_SECRET, // Standardized
                         email,
                         password
                     })

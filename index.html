@@ -935,7 +935,8 @@
             const formData = new FormData(form);
             const payload = {
                 intent: 'public_enquiry',
-                webhookSecret: WEBHOOK_SECRET,
+                webhookSecret: WEBHOOK_SECRET, // Legacy support
+                WEBHOOK_SECRET: WEBHOOK_SECRET, // Standardized
                 name: sanitize(formData.get('name')),
                 email: sanitize(formData.get('email')),
                 phone: sanitize(formData.get('phone')),
