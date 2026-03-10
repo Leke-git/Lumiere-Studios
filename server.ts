@@ -13,6 +13,14 @@ async function startServer() {
   // The dynamic path for the admin panel from environment variable
   const adminPath = process.env.ADMIN_PATH || "/admin";
 
+  // API endpoint to serve public configuration to the frontend
+  app.get("/api/config", (req, res) => {
+    res.json({
+      n8nWebhook: process.env.N8N_WEBHOOK || "",
+      webhookSecret: process.env.WEBHOOK_SECRET || ""
+    });
+  });
+
   // Serve the admin page at the dynamic path
   // We use a specific route to serve the admin-panel.html file
   app.get(adminPath, (req, res) => {

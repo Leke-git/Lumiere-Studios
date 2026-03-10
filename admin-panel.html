@@ -570,46 +570,27 @@
     <!-- Toast Notification -->
     <div id="toast">Action successful</div>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-
     <script>
-        // Firebase Configuration (User to fill in .env)
-        const firebaseConfig = {
-            apiKey: "YOUR_FIREBASE_API_KEY",
-            authDomain: "YOUR_FIREBASE_AUTH_DOMAIN",
-            projectId: "YOUR_FIREBASE_PROJECT_ID",
-            storageBucket: "YOUR_FIREBASE_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_FIREBASE_MESSAGING_SENDER_ID",
-            appId: "YOUR_FIREBASE_APP_ID"
-        };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-
         // State Management
         let sessionToken = null;
-        const N8N_WEBHOOK = 'YOUR_WEBHOOK_HERE';
-        const WEBHOOK_SECRET = 'YOUR_WEBHOOK_SECRET_HERE';
+        let lastActivity = Date.now();
+        let N8N_WEBHOOK = '';
+        let WEBHOOK_SECRET = '';
 
-        // Auth Observer
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                sessionToken = await user.getIdToken();
-                loginScreen.style.display = 'none';
-                adminPanel.style.display = 'block';
-                loadDashboard();
-                showToast('Authenticated via Firebase');
-            } else {
-                sessionToken = null;
-                adminPanel.style.display = 'none';
-                loginScreen.style.display = 'flex';
+        // Load configuration from server
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                N8N_WEBHOOK = config.n8nWebhook;
+                WEBHOOK_SECRET = config.webhookSecret;
+            } catch (err) {
+                console.error('Failed to load configuration:', err);
             }
-        });
+        }
+        loadConfig();
 
-        // Login Logic
+        // Auth Logic
         const loginForm = document.getElementById('login-form');
         const loginScreen = document.getElementById('login-screen');
         const adminPanel = document.getElementById('admin-panel');
@@ -617,6 +598,12 @@
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            if (!N8N_WEBHOOK) {
+                alert('System configuration is missing. Please ensure N8N_WEBHOOK is set in the environment.');
+                return;
+            }
+
             loginBtn.disabled = true;
             loginBtn.textContent = 'Authenticating...';
 
@@ -624,20 +611,52 @@
             const password = document.getElementById('login-password').value;
 
             try {
-                await auth.signInWithEmailAndPassword(email, password);
+                const response = await fetch(N8N_WEBHOOK, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        intent: 'admin_auth',
+                        webhookSecret: WEBHOOK_SECRET,
+                        email,
+                        password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.token) {
+                    sessionToken = data.token;
+                    loginScreen.style.display = 'none';
+                    adminPanel.style.display = 'block';
+                    loadDashboard();
+                    showToast('Welcome back, Lumière');
+                } else {
+                    alert('Invalid credentials');
+                }
             } catch (err) {
                 console.error(err);
-                alert('Login failed: ' + err.message);
+                alert('Connection failed');
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Login to Studio';
             }
         });
 
+        // Auto-logout Logic
+        setInterval(() => {
+            if (sessionToken && Date.now() - lastActivity > 3600000) {
+                logout();
+            }
+        }, 60000);
+
         function logout() {
-            auth.signOut();
+            sessionToken = null;
+            adminPanel.style.display = 'none';
+            loginScreen.style.display = 'flex';
+            showToast('Session expired');
         }
 
+        document.addEventListener('mousemove', () => lastActivity = Date.now());
         document.getElementById('logout-btn').addEventListener('click', logout);
 
         // Navigation Logic

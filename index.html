@@ -895,12 +895,29 @@
         });
 
         // Form Submission Logic
-        // These will be configured by the user in .env later
-        const N8N_WEBHOOK = 'YOUR_WEBHOOK_HERE';
-        const WEBHOOK_SECRET = 'YOUR_WEBHOOK_SECRET_HERE';
+        let N8N_WEBHOOK = '';
+        let WEBHOOK_SECRET = '';
+
+        // Load configuration from server
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                N8N_WEBHOOK = config.n8nWebhook;
+                WEBHOOK_SECRET = config.webhookSecret;
+            } catch (err) {
+                console.error('Failed to load configuration:', err);
+            }
+        }
+        loadConfig();
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            if (!N8N_WEBHOOK) {
+                alert('System configuration is missing. Please ensure N8N_WEBHOOK is set in the environment.');
+                return;
+            }
             
             if (!sessionInput.value) {
                 alert('Please select a session type.');
