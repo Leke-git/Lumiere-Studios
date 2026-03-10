@@ -3,6 +3,62 @@
   "nodes": [
     {
       "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "WEBHOOK_SECRET",
+              "value": "YOUR_WEBHOOK_SECRET_HERE"
+            },
+            {
+              "name": "GEMINI_API_KEY",
+              "value": "YOUR_GEMINI_API_KEY_HERE"
+            },
+            {
+              "name": "AI_SYSTEM_PROMPT",
+              "value": "PASTE_FULL_SYSTEM_PROMPT_HERE"
+            },
+            {
+              "name": "SUPABASE_URL",
+              "value": "YOUR_SUPABASE_URL_HERE"
+            },
+            {
+              "name": "SUPABASE_SERVICE_KEY",
+              "value": "YOUR_SUPABASE_SERVICE_KEY_HERE"
+            },
+            {
+              "name": "OWNER_EMAIL",
+              "value": "YOUR_EMAIL_HERE"
+            },
+            {
+              "name": "SMTP_USER",
+              "value": "YOUR_SMTP_USER_HERE"
+            },
+            {
+              "name": "WHATSAPP_PHONE_NUMBER_ID",
+              "value": "YOUR_WHATSAPP_PHONE_ID_HERE"
+            },
+            {
+              "name": "WHATSAPP_ACCESS_TOKEN",
+              "value": "YOUR_WHATSAPP_TOKEN_HERE"
+            },
+            {
+              "name": "OWNER_PHONE",
+              "value": "YOUR_PHONE_NUMBER_HERE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Global Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "httpMethod": "POST",
         "path": "lumiere-studio",
         "responseMode": "onReceived",
@@ -18,13 +74,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Security check — always the first thing executed\nconst incoming = $json.body.webhookSecret;\nconst expected = $env.WEBHOOK_SECRET;\n\nif (!incoming || incoming !== expected) {\n  return [{ json: { error: \"Unauthorized\", status: 401 } }];\n}\n\n// Strip the secret from the payload before passing downstream\nconst { webhookSecret, ...safePayload } = $json.body;\nreturn [{ json: safePayload }];"
+        "jsCode": "// Security check — always the first thing executed\nconst incoming = $json.webhookSecret;\nconst expected = $node[\"Global Config\"].json.WEBHOOK_SECRET;\n\nif (!incoming || incoming !== expected) {\n  return [{ json: { error: \"Unauthorized\", status: 401 } }];\n}\n\n// Strip the secret and config from the payload before passing downstream\nconst { \n  webhookSecret, \n  WEBHOOK_SECRET, \n  GEMINI_API_KEY, \n  AI_SYSTEM_PROMPT, \n  SUPABASE_URL, \n  SUPABASE_SERVICE_KEY, \n  OWNER_EMAIL, \n  SMTP_USER, \n  WHATSAPP_PHONE_NUMBER_ID, \n  WHATSAPP_ACCESS_TOKEN, \n  OWNER_PHONE, \n  ...safePayload \n} = $json;\n\nreturn [{ json: safePayload }];"
       },
       "name": "Security Gate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [
-        300,
+        450,
         300
       ]
     },
@@ -43,7 +99,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        500,
+        650,
         300
       ]
     },
@@ -75,28 +131,42 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 1,
       "position": [
-        700,
+        850,
         300
       ]
     },
     {
       "parameters": {
-        "model": "gemini-2.0-flash",
-        "prompt": "={{$json}}",
-        "systemInstruction": "={{$env.AI_SYSTEM_PROMPT}}"
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={{$node[\"Global Config\"].json.GEMINI_API_KEY}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"{{$node[\\\"Global Config\\\"].json.AI_SYSTEM_PROMPT}}\\n\\nInput Data: {{JSON.stringify($json)}}\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\"\n  }\n}"
+      },
+      "name": "Gemini API Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1050,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $node[\"Gemini API Call\"].json.candidates[0].content.parts[0].text;\ntry {\n  return JSON.parse(response);\n} catch (e) {\n  return { \n    score: 1, \n    tier: 'cold', \n    summary: 'AI response was not valid JSON', \n    reply: 'Thank you for your inquiry. We have received your message.' \n  };\n}"
       },
       "name": "Gemini AI Scoring",
-      "type": "n8n-nodes-base.googleGemini",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        900,
+        1200,
         100
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$env.SUPABASE_URL}}/rest/v1/leads",
+        "url": "={{$node[\"Global Config\"].json.SUPABASE_URL}}/rest/v1/leads",
         "authentication": "headerAuth",
         "sendBody": true,
         "bodyParameters": {
@@ -157,7 +227,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        1100,
+        1350,
         100
       ]
     },
@@ -176,14 +246,14 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        1300,
+        1550,
         100
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{$env.SMTP_USER}}",
-        "toEmail": "={{$env.OWNER_EMAIL}}",
+        "fromEmail": "={{$node[\"Global Config\"].json.SMTP_USER}}",
+        "toEmail": "={{$node[\"Global Config\"].json.OWNER_EMAIL}}",
         "subject": "URGENT: New Hot Lead - {{$node[\"Intent Router\"].json.name}}",
         "text": "A new hot lead has arrived!\n\nName: {{$node[\"Intent Router\"].json.name}}\nSession: {{$node[\"Intent Router\"].json.session_type}}\nBudget: ₦{{$node[\"Intent Router\"].json.budget}}\nScore: {{$node[\"Gemini AI Scoring\"].json.score}}\nSummary: {{$node[\"Gemini AI Scoring\"].json.summary}}\n\nCheck the admin panel for details."
       },
@@ -191,13 +261,13 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 1,
       "position": [
-        1500,
+        1750,
         0
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{$env.SMTP_USER}}",
+        "fromEmail": "={{$node[\"Global Config\"].json.SMTP_USER}}",
         "toEmail": "={{$node[\"Intent Router\"].json.email}}",
         "subject": "Thank you for your inquiry - Lumière Studio",
         "text": "={{$node[\"Gemini AI Scoring\"].json.reply}}"
@@ -206,22 +276,22 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 1,
       "position": [
-        1700,
+        1950,
         100
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v17.0/{{$env.WHATSAPP_PHONE_NUMBER_ID}}/messages",
+        "url": "=https://graph.facebook.com/v17.0/{{$node[\"Global Config\"].json.WHATSAPP_PHONE_NUMBER_ID}}/messages",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{$env.OWNER_PHONE}}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"URGENT: New Hot Lead from {{$node[\\\"Intent Router\\\"].json.name}} (₦{{$node[\\\"Intent Router\\\"].json.budget}}). Check your email for full details.\"\n  }\n}",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{$node[\\\"Global Config\\\"].json.OWNER_PHONE}}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"URGENT: New Hot Lead from {{$node[\\\"Intent Router\\\"].json.name}} (₦{{$node[\\\"Intent Router\\\"].json.budget}}). Check your email for full details.\"\n  }\n}",
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Bearer {{$env.WHATSAPP_ACCESS_TOKEN}}"
+              "value": "=Bearer {{$node[\"Global Config\"].json.WHATSAPP_ACCESS_TOKEN}}"
             }
           ]
         },
@@ -231,13 +301,24 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        1500,
+        1750,
         200
       ]
     }
   ],
   "connections": {
     "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Global Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Global Config": {
       "main": [
         [
           {
@@ -272,6 +353,17 @@
       ]
     },
     "Intent Router": {
+      "main": [
+        [
+          {
+            "node": "Gemini API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini API Call": {
       "main": [
         [
           {
