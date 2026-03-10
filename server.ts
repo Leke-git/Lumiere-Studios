@@ -2,6 +2,9 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,9 +18,14 @@ async function startServer() {
 
   // API endpoint to serve public configuration to the frontend
   app.get("/api/config", (req, res) => {
+    const webhook = process.env.N8N_WEBHOOK || process.env.N8N_WEBHOOK_URL || "";
+    const secret = process.env.WEBHOOK_SECRET || "";
+    
+    console.log(`Config requested. Webhook found: ${!!webhook}, Secret found: ${!!secret}`);
+    
     res.json({
-      n8nWebhook: process.env.N8N_WEBHOOK || "",
-      webhookSecret: process.env.WEBHOOK_SECRET || ""
+      n8nWebhook: webhook,
+      webhookSecret: secret
     });
   });
 
